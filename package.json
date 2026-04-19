@@ -1,0 +1,11 @@
+{
+  "name": "chronoverse",
+  "version": "1.0.0",
+  "description": "ChronoVerse Time-Travel Debugging Platform",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "services/*",
+    "packages/*"
+  ]
+}
