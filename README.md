@@ -1,4 +1,5 @@
-# ChronoVerse: Debugging Beyond Time 🛡️🚀
+<h1 align="center"> ChronoVerse: Debugging Beyond Time 🛡️🚀 </h1>
+<h3 align="center">Debugging Beyond Time ✨</h3>
 
 **ChronoVerse** is a production-grade, cloud-native time-travel debugging platform for distributed systems. It captures application events like API calls, database operations, and system interactions using a high-throughput, event-driven architecture. 
 
@@ -14,7 +15,7 @@ This project adheres to the highest standards of "Clean Code" and "Security-Firs
     - ✅ **Reliability**: 0 Bugs (Robust error handling)
 - **Architecture**: Decoupled Microservices orchestrated via Docker.
 - **Performance**: Real-time visualization using high-speed WebSockets.
-
+![Dashboard Main](images/SonarCloud-Analysis.png)
 ---
 
 ## 🛠️ Tech Stack Matrix
@@ -68,10 +69,10 @@ powershell -ExecutionPolicy Bypass -File .\generate_samples.ps1
 ---
 
 ## 📸 Interface Preview
-*ChronoVerse offers a premium, glassmorphic dashboard for deep system inspection.*
 
-![Dashboard Main](file:///C:/Users/Rheya%20Rajesh/.gemini/antigravity/brain/36cd8d51-02cf-492e-bbe0-162c5aa583f7/final_verification_state_1776630853503.png)
-*(Fig: Live Event Stream and System Health Monitor)*
+![Dashboard Main](images/Simulation-forking.png)
+![Dashboard Main](images/Time-Travel.png)
+*(Fig: Forking timeline, Simulations and Time Travel through time)*
 
 ---
 
