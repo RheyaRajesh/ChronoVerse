@@ -22,6 +22,7 @@ app.post('/api/events', async (req, res) => {
     const data = await response.json();
     res.status(response.status).json(data);
   } catch (error) {
+    console.error('Gateway forwarding error:', error);
     res.status(500).json({ error: 'Gateway failed to forward event' });
   }
 });

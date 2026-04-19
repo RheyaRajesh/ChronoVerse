@@ -9,7 +9,7 @@ const kafka = new Kafka({
 const consumer = kafka.consumer({ groupId: 'event-store-group' });
 
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgres://chronouser:chronopassword@postgres:5432/chronoverse'
+  connectionString: process.env.DATABASE_URL
 });
 
 async function start() {

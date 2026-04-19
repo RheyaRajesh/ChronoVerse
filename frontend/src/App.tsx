@@ -157,7 +157,7 @@ export default function App() {
                 <div className="flex space-x-2">
                   <button 
                     onClick={() => setIsPausedSynced(false)}
-                    className={`p-2 rounded border border-white/5 transition-colors ${!isPaused ? 'bg-indigo-500 text-white' : 'bg-white/5 hover:bg-white/10 text-emerald-400'}`}
+                    className={`p-2 rounded border border-white/5 transition-colors ${isPaused ? 'bg-white/5 hover:bg-white/10 text-emerald-400' : 'bg-indigo-500 text-white'}`}
                     title="Play / Resume Live"
                   >
                     <Play className="h-4 w-4" />
@@ -258,12 +258,16 @@ export default function App() {
       {toast && (
         <div className="fixed bottom-8 right-8 z-[100] animate-slide-up">
           <div className={`px-6 py-4 rounded-2xl border shadow-2xl backdrop-blur-xl flex items-center space-x-3 
-            ${toast.type === 'error' ? 'bg-red-500/10 border-red-500/20 text-red-400' : 
-              toast.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 
-              'bg-indigo-500/10 border-indigo-500/20 text-indigo-400'}`}>
-            {toast.type === 'error' ? <AlertTriangle className="h-5 w-5" /> : 
-             toast.type === 'success' ? <ShieldCheck className="h-5 w-5" /> : 
-             <Activity className="h-5 w-5" />}
+            ${(() => {
+                if (toast.type === 'error') return 'bg-red-500/10 border-red-500/20 text-red-400';
+                if (toast.type === 'success') return 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400';
+                return 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400';
+              })()}`}>
+            {(() => {
+                if (toast.type === 'error') return <AlertTriangle className="h-5 w-5" />;
+                if (toast.type === 'success') return <ShieldCheck className="h-5 w-5" />;
+                return <Activity className="h-5 w-5" />;
+              })()}
             <span className="font-medium text-sm">{toast.message}</span>
           </div>
         </div>

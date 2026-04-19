@@ -11,6 +11,7 @@ KAFKA_BROKER = os.getenv("KAFKA_BROKER", "kafka:29092")
 # Pluggable Strategy for Anomaly Detection
 class AnomalyDetectionStrategy:
     def detect(self, event) -> bool:
+        # Base method to be overridden by concrete detection strategies
         pass
 
 class SimpleRuleBasedDetection(AnomalyDetectionStrategy):

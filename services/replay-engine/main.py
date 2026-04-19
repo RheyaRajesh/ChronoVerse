@@ -16,7 +16,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://chronouser:chronopassword@postgres:5432/chronoverse")
+DATABASE_URL = os.getenv("DATABASE_URL")
 REDIS_HOST = os.getenv("REDIS_HOST", "redis")
 
 def get_db_connection():
@@ -27,7 +27,7 @@ try:
 except Exception as e:
     print("Redis connection failed", e)
 
-@app.get("/replay/{target_timestamp}")
+@app.get("/replay/{target_timestamp}", responses={500: {"description": "Internal Server Error"}})
 def replay_events(target_timestamp: str):
     """
     Replay events up to a given timestamp to reconstruct state.

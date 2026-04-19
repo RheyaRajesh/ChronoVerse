@@ -25,7 +25,7 @@ services:
     image: postgres:15-alpine
     environment:
       POSTGRES_USER: chronouser
-      POSTGRES_PASSWORD: chronopassword
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-chronopassword}
       POSTGRES_DB: chronoverse
     ports:
       - "5432:5432"
@@ -81,7 +81,7 @@ services:
     build: ./services/event-store
     environment:
       - KAFKA_BROKER=kafka:29092
-      - DATABASE_URL=postgres://chronouser:chronopassword@postgres:5432/chronoverse
+      - DATABASE_URL=postgres://chronouser:${DB_PASSWORD:-chronopassword}@postgres:5432/chronoverse
     depends_on:
       - kafka
       - postgres
@@ -92,7 +92,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://chronouser:chronopassword@postgres:5432/chronoverse
+      - DATABASE_URL=postgresql://chronouser:${DB_PASSWORD:-chronopassword}@postgres:5432/chronoverse
       - REDIS_HOST=redis
     depends_on:
       - postgres
@@ -127,7 +127,7 @@ services:
     build: ./services/projection
     environment:
       - KAFKA_BROKER=kafka:29092
-      - DATABASE_URL=postgres://chronouser:chronopassword@postgres:5432/chronoverse
+      - DATABASE_URL=postgres://chronouser:${DB_PASSWORD:-chronopassword}@postgres:5432/chronoverse
     depends_on:
       - kafka
       - postgres
