@@ -38,47 +38,10 @@ services:
     ports:
       - "6379:6379"
 
-  prometheus:
-    image: prom/prometheus:latest
-    ports:
-      - "9090:9090"
-
-  grafana:
-    image: grafana/grafana:latest
-    ports:
-      - "3001:3000"
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
-    depends_on:
-      - prometheus
-
-  gateway:
-    build: ./services/gateway
+  api:
+    build: ./services/api
     ports:
       - "4000:4000"
-    environment:
-      - INGESTION_URL=http://ingestion:4001
-    depends_on:
-      - ingestion
-    volumes:
-      - ./services/gateway:/app
-      - /app/node_modules
-
-  ingestion:
-    build: ./services/ingestion
-    ports:
-      - "4001:4001"
-    environment:
-      - KAFKA_BROKER=kafka:29092
-    depends_on:
-      - kafka
-    restart: always
-    volumes:
-      - ./services/ingestion:/app
-      - /app/node_modules
-
-  event-store:
-    build: ./services/event-store
     environment:
       - KAFKA_BROKER=kafka:29092
       - DATABASE_URL=postgres://chronouser:${DB_PASSWORD}@postgres:5432/chronoverse
@@ -87,19 +50,19 @@ services:
       - postgres
     restart: always
 
-  replay-engine:
-    build: ./services/replay-engine
+  engine:
+    build: ./services/engine
     ports:
       - "8000:8000"
     environment:
+      - KAFKA_BROKER=kafka:29092
       - DATABASE_URL=postgresql://chronouser:${DB_PASSWORD}@postgres:5432/chronoverse
       - REDIS_HOST=redis
     depends_on:
       - postgres
       - redis
-    volumes:
-      - ./services/replay-engine:/app
-      
+      - kafka
+
   frontend:
     build: 
       context: ./frontend
@@ -108,53 +71,14 @@ services:
       - "3000:3000"
     environment:
       - VITE_API_URL=http://localhost:4000
+      - VITE_ENGINE_URL=http://localhost:8000
+      - VITE_WS_URL=http://localhost:4000
     depends_on:
-      - gateway
-      - visualization
+      - api
+      - engine
     volumes:
       - ./frontend:/app
       - /app/node_modules
-
-
-  auth:
-    build: ./services/auth
-    ports:
-      - "4002:4002"
-    environment:
-      - JWT_SECRET=supersecretchronoverse
-
-  projection:
-    build: ./services/projection
-    environment:
-      - KAFKA_BROKER=kafka:29092
-      - DATABASE_URL=postgres://chronouser:${DB_PASSWORD}@postgres:5432/chronoverse
-    depends_on:
-      - kafka
-      - postgres
-    restart: always
-
-  visualization:
-    build: ./services/visualization
-    ports:
-      - "4003:4003"
-    environment:
-      - KAFKA_BROKER=kafka:29092
-    depends_on:
-      - kafka
-    restart: always
-    volumes:
-      - ./services/visualization:/app
-      - /app/node_modules
-
-  ai-analyzer:
-    build: ./services/ai-analyzer
-    environment:
-      - KAFKA_BROKER=kafka:29092
-      - REDIS_HOST=redis
-    depends_on:
-      - kafka
-      - redis
-    restart: on-failure
 
 volumes:
   pgdata:

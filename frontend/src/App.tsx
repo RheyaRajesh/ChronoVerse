@@ -19,6 +19,8 @@ interface Toast {
 
 export default function App() {
   const [events, setEvents] = useState<Event[]>([]);
+  const [forks, setForks] = useState<{ timestamp: string; snapshot: Event[] }[]>([]);
+  const [activeTab, setActiveTab] = useState<'live' | 'replay' | 'forks'>('live');
   const [connected, setConnected] = useState(false);
   const [anomalyCount, setAnomalyCount] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -44,8 +46,8 @@ export default function App() {
   };
 
   useEffect(() => {
-    // Setup WebSocket connection to Visualization service
-    const socketUrl = import.meta.env.VITE_WS_URL || 'http://localhost:4003';
+    // Setup WebSocket connection to Visualization service (Now merged into Core API)
+    const socketUrl = import.meta.env.VITE_WS_URL || 'http://localhost:4000';
     const socket = io(socketUrl);
 
     socket.on('connect', () => setConnected(true));
@@ -66,24 +68,16 @@ export default function App() {
     return () => { socket.disconnect(); };
   }, []);
 
-  const handleInjectMock = async () => {
-    try {
-      await axios.post('http://localhost:4001/events', {
-        service_name: 'MockService',
-        event_type: 'UI_MOCK_EVENT',
-        payload: { message: 'Injected from UI', timestamp: new Date().toISOString() }
-      });
-    } catch (e) {
-      console.error(e);
-      showToast('Failed to inject mock event', 'error');
-    }
-  };
-
   const handleFork = async () => {
     if (events.length === 0) return;
     try {
       const topEvent = events[0];
       await axios.post(`http://localhost:8000/fork?target_timestamp=${encodeURIComponent(topEvent.timestamp)}`);
+      
+      const newFork = { timestamp: topEvent.timestamp, snapshot: [...events] };
+      setForks(prev => [newFork, ...prev]);
+      setActiveTab('forks');
+      
       showToast('Timeline Fork Created at ' + topEvent.timestamp, 'success');
     } catch (e) {
       console.error(e);
@@ -97,6 +91,7 @@ export default function App() {
 
     try {
       setReplayingSynced(true);
+      setActiveTab('replay');
       const response = await axios.get(`http://localhost:8000/replay/${encodeURIComponent(timestamp)}`);
       if (response.data.status === 'success') {
         const historicalEvents = response.data.raw_events;
@@ -113,6 +108,7 @@ export default function App() {
   const handleResumeLive = () => {
     setReplayingSynced(false);
     setIsPausedSynced(false);
+    setActiveTab('live');
     setEvents([]); // Clear to wait for new live events
   };
 
@@ -125,9 +121,14 @@ export default function App() {
               <div className="bg-indigo-500/10 p-2 rounded-lg border border-indigo-500/20">
                 <Activity className="h-5 w-5 text-indigo-400" />
               </div>
+            <div className="flex flex-col">
               <span className="font-bold text-xl tracking-tight bg-gradient-to-r from-indigo-400 to-cyan-400 bg-clip-text text-transparent">
                 ChronoVerse
               </span>
+              <span className="text-[10px] text-slate-500 uppercase tracking-widest font-semibold -mt-1">
+                Debugging beyond time
+              </span>
+            </div>
             </div>
             <div className="flex items-center space-x-4">
               <span className="flex items-center text-sm px-3 py-1 rounded-full bg-white/5 border border-white/10">
@@ -146,60 +147,122 @@ export default function App() {
         </div>
       </nav>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      <main className="max-width-8xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        {/* Navigation Tabs */}
+        <div className="flex space-x-1 bg-slate-900/40 p-1 rounded-xl border border-white/5 max-w-md">
+          <button 
+            onClick={() => { setActiveTab('live'); handleResumeLive(); }}
+            className={`flex-1 flex items-center justify-center space-x-2 py-2.5 text-sm font-medium rounded-lg transition-all ${activeTab === 'live' ? 'bg-indigo-500 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+          >
+            <Activity className="h-4 w-4" />
+            <span>Live Stream</span>
+          </button>
+          <button 
+            onClick={() => { setActiveTab('replay'); if (!replaying) handleReplay(); }}
+            className={`flex-1 flex items-center justify-center space-x-2 py-2.5 text-sm font-medium rounded-lg transition-all ${activeTab === 'replay' ? 'bg-amber-500 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+          >
+            <RefreshCw className="h-4 w-4" />
+            <span>Time Travel</span>
+          </button>
+          <button 
+            onClick={() => setActiveTab('forks')}
+            className={`flex-1 flex items-center justify-center space-x-2 py-2.5 text-sm font-medium rounded-lg transition-all ${activeTab === 'forks' ? 'bg-emerald-500 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+          >
+            <GitFork className="h-4 w-4" />
+            <span>Simulations</span>
+            {forks.length > 0 && <span className="absolute -top-1 -right-1 bg-red-500 text-[8px] h-4 w-4 flex items-center justify-center rounded-full border-2 border-slate-950 font-bold">{forks.length}</span>}
+          </button>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="col-span-1 lg:col-span-2 space-y-6">
             <div className="bg-slate-900/50 border border-white/5 rounded-2xl p-6 backdrop-blur-sm">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-lg font-semibold flex items-center">
-                  <RefreshCw className="h-4 w-4 mr-2 text-slate-400" /> Event Stream
+                  {activeTab === 'live' ? <Activity className="h-4 w-4 mr-2 text-indigo-400" /> : 
+                   activeTab === 'replay' ? <RefreshCw className="h-4 w-4 mr-2 text-amber-400" /> : 
+                   <GitFork className="h-4 w-4 mr-2 text-emerald-400" />}
+                  {activeTab === 'live' ? 'Live Event Feed' : 
+                   activeTab === 'replay' ? 'Historical Replay' : 'Simulation Forks'}
                 </h2>
-                <div className="flex space-x-2">
-                  <button 
-                    onClick={() => setIsPausedSynced(false)}
-                    className={`p-2 rounded border border-white/5 transition-colors ${isPaused ? 'bg-white/5 hover:bg-white/10 text-emerald-400' : 'bg-indigo-500 text-white'}`}
-                    title="Play / Resume Live"
-                  >
-                    <Play className="h-4 w-4" />
-                  </button>
-                  <button 
-                    onClick={() => setIsPausedSynced(true)}
-                    className={`p-2 rounded border border-white/5 transition-colors ${isPaused ? 'bg-indigo-500 text-white' : 'bg-white/5 hover:bg-white/10 text-amber-400'}`}
-                    title="Pause Stream"
-                  >
-                    <Pause className="h-4 w-4" />
-                  </button>
-                </div>
+                {activeTab === 'live' && (
+                  <div className="flex space-x-2">
+                    <button 
+                      onClick={() => setIsPausedSynced(false)}
+                      className={`p-2 rounded border border-white/5 transition-colors ${isPaused ? 'bg-white/5 hover:bg-white/10 text-emerald-400' : 'bg-indigo-500 text-white'}`}
+                      title="Play / Resume Live"
+                    >
+                      <Play className="h-4 w-4" />
+                    </button>
+                    <button 
+                      onClick={() => setIsPausedSynced(true)}
+                      className={`p-2 rounded border border-white/5 transition-colors ${isPaused ? 'bg-indigo-500 text-white' : 'bg-white/5 hover:bg-white/10 text-amber-400'}`}
+                      title="Pause Stream"
+                    >
+                      <Pause className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-4">
-                {events.length === 0 ? (
-                  <div className="text-center py-12 text-slate-500 italic border border-dashed border-white/10 rounded-xl">
-                    Waiting for events...
-                  </div>
-                ) : (
-                  events.map((evt, i) => (
-                    <div key={evt.event_id} 
-                         className="group relative p-4 bg-slate-950 border border-white/5 rounded-xl hover:border-indigo-500/50 transition-all cursor-pointer">
-                      <div className="absolute inset-y-0 left-0 w-1 bg-indigo-500 rounded-l-xl opacity-0 group-hover:opacity-100 transition-opacity" />
-                      <div className="flex justify-between items-start mb-2">
-                        <div className="flex items-center space-x-3">
-                          <span className="text-xs font-mono px-2 py-1 bg-indigo-500/10 text-indigo-400 rounded">
-                            {evt.service_name}
+                {activeTab === 'forks' ? (
+                  forks.length === 0 ? (
+                    <div className="text-center py-12 text-slate-500 italic border border-dashed border-white/10 rounded-xl">
+                      No simulations active. Fork a timeline to start.
+                    </div>
+                  ) : (
+                    forks.map((fork, i) => (
+                      <div key={i} className="p-4 bg-slate-950/60 border border-emerald-500/20 rounded-xl space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-bold text-emerald-400 flex items-center">
+                            <GitFork className="h-3 w-3 mr-2" /> Simulation @ {new Date(fork.timestamp).toLocaleTimeString()}
                           </span>
-                          <span className="text-sm font-medium text-slate-300">
-                            {evt.event_type}
+                          <span className="text-[10px] text-slate-500 font-mono italic">
+                            Captured {fork.snapshot.length} events
                           </span>
                         </div>
-                        <span className="text-xs text-slate-500 font-mono">
-                          {new Date(evt.timestamp).toLocaleTimeString()}
-                        </span>
+                        <div className="space-y-2 opacity-80 scale-[0.98] origin-top">
+                           {fork.snapshot.slice(0, 3).map(evt => (
+                             <div key={evt.event_id} className="p-2 bg-black/40 border border-white/5 rounded text-[10px] font-mono text-slate-400 flex justify-between">
+                               <span>{evt.event_type}</span>
+                               <span>{evt.service_name}</span>
+                             </div>
+                           ))}
+                           {fork.snapshot.length > 3 && <div className="text-[9px] text-center text-slate-600">... {fork.snapshot.length - 3} more events</div>}
+                        </div>
                       </div>
-                      <div className="text-xs text-slate-400 font-mono mt-3 p-3 bg-black/40 rounded-lg overflow-x-auto whitespace-pre">
-                        {JSON.stringify(evt.payload, null, 2)}
-                      </div>
+                    ))
+                  )
+                ) : (
+                  events.length === 0 ? (
+                    <div className="text-center py-12 text-slate-500 italic border border-dashed border-white/10 rounded-xl">
+                      {activeTab === 'replay' ? 'Pulling timeline data...' : 'Waiting for live events...'}
                     </div>
-                  ))
+                  ) : (
+                    events.map((evt, i) => (
+                      <div key={evt.event_id} 
+                           className="group relative p-4 bg-slate-950 border border-white/5 rounded-xl hover:border-indigo-500/50 transition-all cursor-pointer">
+                        <div className={`absolute inset-y-0 left-0 w-1 rounded-l-xl opacity-0 group-hover:opacity-100 transition-opacity ${activeTab === 'replay' ? 'bg-amber-500' : 'bg-indigo-500'}`} />
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="flex items-center space-x-3">
+                            <span className={`text-xs font-mono px-2 py-1 rounded ${activeTab === 'replay' ? 'bg-amber-500/10 text-amber-400' : 'bg-indigo-500/10 text-indigo-400'}`}>
+                              {evt.service_name}
+                            </span>
+                            <span className="text-sm font-medium text-slate-300">
+                              {evt.event_type}
+                            </span>
+                          </div>
+                          <span className="text-xs text-slate-500 font-mono">
+                            {new Date(evt.timestamp).toLocaleTimeString()}
+                          </span>
+                        </div>
+                        <div className="text-xs text-slate-400 font-mono mt-3 p-3 bg-black/40 rounded-lg overflow-x-auto whitespace-pre">
+                          {JSON.stringify(evt.payload, null, 2)}
+                        </div>
+                      </div>
+                    ))
+                  )
                 )}
               </div>
             </div>
@@ -232,7 +295,7 @@ export default function App() {
                    className="w-full text-left px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl transition-colors text-sm flex items-center justify-between"
                  >
                    <span>Replay specific timeframe</span>
-                   {replaying && <span className="bg-indigo-500 text-[10px] px-2 py-0.5 rounded-full text-white font-bold">REPLAYING</span>}
+                   {replaying && <span className="bg-amber-500 text-[10px] px-2 py-0.5 rounded-full text-white font-bold">REPLAYING</span>}
                  </button>
                  {replaying && (
                    <button 
@@ -242,12 +305,6 @@ export default function App() {
                      Resume Live Monitoring
                    </button>
                  )}
-                 <button 
-                   onClick={handleInjectMock}
-                   className="w-full text-left px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl transition-colors text-sm"
-                 >
-                    Inject mock event
-                 </button>
                </div>
             </div>
           </div>
