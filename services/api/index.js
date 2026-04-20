@@ -2,7 +2,6 @@ const express = require('express');
 const cors = require('cors');
 const http = require('node:http');
 const { Server } = require('socket.io');
-const { Kafka } = require('kafkajs');
 const { Pool } = require('pg');
 const { v4: uuidv4 } = require('uuid');
 const jwt = require('jsonwebtoken');
@@ -17,17 +16,12 @@ const io = new Server(httpServer, {
 });
 
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecretchronoverse';
-const KAFKA_BROKER = process.env.KAFKA_BROKER || 'kafka:29092';
 const DATABASE_URL = process.env.DATABASE_URL;
 
-// Kafka Clients
-const kafka = new Kafka({
-  clientId: 'chronoverse-api',
-  brokers: [KAFKA_BROKER]
+const pool = new Pool({ 
+  connectionString: DATABASE_URL,
+  ssl: DATABASE_URL && (DATABASE_URL.includes('supabase') || DATABASE_URL.includes('render')) ? { rejectUnauthorized: false } : false
 });
-
-const producer = kafka.producer();
-const pool = new Pool({ connectionString: DATABASE_URL });
 
 // --- API ROUTES ---
 
@@ -57,98 +51,52 @@ app.post('/api/events', async (req, res) => {
       version: 1
     };
 
-    await producer.send({
-      topic: 'system-events',
-      messages: [{ value: JSON.stringify(event) }],
-    });
+    await pool.query(
+      `INSERT INTO events (event_id, timestamp, service_name, event_type, payload, correlation_id, version)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [event.event_id, event.timestamp, event.service_name, event.event_type, event.payload, event.correlation_id, event.version]
+    );
+
+    // Broadcast in real-time
+    io.emit('new_event', event);
 
     res.status(202).json({ message: 'Event accepted', event_id, correlation_id });
   } catch (err) {
     console.error('Failed to ingest event', err);
-    res.status(503).json({ error: 'Ingestion Service not ready (Kafka connection pending)' });
+    res.status(500).json({ error: 'Storage failed' });
   }
 });
 
-// --- KAFKA CONSUMER LOGISTICS ---
+// --- UNIFIED ENGINE LOGIC (Ported from Python) ---
 
-const startConsumers = async () => {
-  // Consumer 1: Event Store (Persistence)
-  const storeConsumer = kafka.consumer({ groupId: 'api-event-store-group' });
-  await storeConsumer.connect();
-  await storeConsumer.subscribe({ topic: 'system-events', fromBeginning: true });
+app.get('/replay/:target_timestamp', async (req, res) => {
+  const { target_timestamp } = req.params;
+  try {
+    const result = await pool.query(
+      "SELECT * FROM events WHERE timestamp <= $1 ORDER BY timestamp ASC", 
+      [target_timestamp]
+    );
+    
+    const raw_events = result.rows.map(row => ({
+      ...row,
+      timestamp: row.timestamp.toISOString()
+    }));
 
-  // Consumer 2: Projection (State Tracking)
-  const projectionConsumer = kafka.consumer({ groupId: 'api-projection-group' });
-  await projectionConsumer.connect();
-  await projectionConsumer.subscribe({ topic: 'system-events', fromBeginning: true });
+    res.json({ status: 'success', raw_events });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
-  // Consumer 3: Visualization (Live Stream)
-  const vizConsumer = kafka.consumer({ groupId: 'api-visualization-group' });
-  await vizConsumer.connect();
-  await vizConsumer.subscribe({ topic: 'system-events', fromBeginning: false });
-
-  // Run Store Consumer
-  storeConsumer.run({
-    eachMessage: async ({ message }) => {
-      try {
-        const event = JSON.parse(message.value.toString());
-        await pool.query(
-          `INSERT INTO events (event_id, timestamp, service_name, event_type, payload, correlation_id, version)
-           VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (event_id) DO NOTHING`,
-          [event.event_id, event.timestamp, event.service_name, event.event_type, event.payload, event.correlation_id, event.version]
-        );
-      } catch (e) { console.error('Store error', e); }
-    }
-  });
-
-  // Run Projection Consumer
-  projectionConsumer.run({
-    eachMessage: async ({ message }) => {
-      try {
-        const event = JSON.parse(message.value.toString());
-        await pool.query(
-          `UPDATE projections_timeline SET total_events = total_events + 1, last_event_timestamp = $1 
-           WHERE id = '00000000-0000-0000-0000-000000000001'`,
-          [event.timestamp]
-        );
-      } catch (e) { console.error('Projection error', e); }
-    }
-  });
-
-  // Run Visualization Consumer (Socket.io bridge)
-  vizConsumer.run({
-    eachMessage: async ({ message }) => {
-      try {
-        const event = JSON.parse(message.value.toString());
-        io.emit('new_event', event);
-      } catch (e) { console.error('Viz error', e); }
-    }
-  });
-
-  console.log('All Background Consumers for Core API Started.');
-};
+app.post('/fork', (req, res) => {
+  const { target_timestamp } = req.query;
+  res.json({ status: 'success', message: `Timeline forked at ${target_timestamp}.` });
+});
 
 // --- STARTUP ---
 
 const PORT = process.env.PORT || 4000;
 
-const connectWithRetry = async () => {
-  let connected = false;
-  while (!connected) {
-    try {
-      console.log('Attempting to connect to Kafka...');
-      await producer.connect();
-      console.log('Producer linked to Kafka');
-      await startConsumers();
-      connected = true;
-    } catch (err) {
-      console.error('Kafka connection failed, retrying in 5s...', err.message);
-      await new Promise(resolve => setTimeout(resolve, 5000));
-    }
-  }
-};
-
-httpServer.listen(PORT, async () => {
-  console.log(`Core API/Gateway running on port ${PORT}`);
-  connectWithRetry();
+httpServer.listen(PORT, () => {
+  console.log(`ChronoVerse Unified Backend (Vercel+Render Optimized) running on port ${PORT}`);
 });
