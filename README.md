@@ -1,11 +1,20 @@
-<h1 align="center"> ChronoVerse: Debugging Beyond Time 🛡️🚀 </h1>
+<h1 align="center"> ChronoVerse🛡️🚀 </h1>
 <h3 align="center">Debugging Beyond Time ✨</h3>
 
 **ChronoVerse** is a production-grade, cloud-native time-travel debugging platform for distributed systems. It captures application events like API calls, database operations, and system interactions using a high-throughput, event-driven architecture. 
 
 By leveraging **Event Sourcing** and **CQRS**, ChronoVerse allows developers to deterministically reconstruct system state at any historical timestamp, explore "what-if" scenarios through timeline forking, and detect system anomalies using integrated AI strategies.
 
----
+
+## 🌍 Deployment
+
+The project is deployed and accessible here:
+
+<p style="font-size:14px;">
+🔗 https://chrono-verse-frontend-omega.vercel.app/
+</p>
+
+
 
 ## 💎 Project Health & Quality
 This project adheres to the highest standards of "Clean Code" and "Security-First" engineering.
