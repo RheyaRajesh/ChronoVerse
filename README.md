@@ -70,8 +70,11 @@ powershell -ExecutionPolicy Bypass -File .\generate_samples.ps1
 
 ## 📸 Interface Preview
 
-![Dashboard Main](images/Simulation-forking.png)
-![Dashboard Main](images/Time-Travel.png)
+![Dashboard Main](images/1.png)
+![Dashboard Main](images/3.png)
+![Dashboard Main](images/5.png)
+![Dashboard Main](images/2.png)
+![Dashboard Main](images/4.png)
 *(Fig: Forking timeline, Simulations and Time Travel through time)*
 
 ---
