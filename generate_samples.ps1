@@ -35,7 +35,7 @@ foreach ($event in $events) {
     $body = $event | ConvertTo-Json
     Write-Host "Injecting $($event.event_type) from $($event.service_name)..."
     try {
-        Invoke-RestMethod -Uri "http://localhost:4000/api/events" -Method Post -ContentType "application/json" -Body $body
+        Invoke-RestMethod -Uri "https://chronoverse.onrender.com/api/events" -Method Post -ContentType "application/json" -Body $body
         Write-Host "✅ Success" -ForegroundColor Green
     } catch {
         Write-Host "❌ Failed: $($_.Exception.Message)" -ForegroundColor Red
